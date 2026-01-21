@@ -1,42 +1,10 @@
 import { kv } from '@vercel/kv'
 import { NextRequest, NextResponse } from 'next/server'
-
-interface GuestbookEntry {
-  id: string
-  name: string
-  email: string
-  message: string
-  createdAt: string
-  ip: string
-}
-
-// In-memory fallback for when KV is not available
-let memoryEntries: GuestbookEntry[] = []
+import { getEntries, saveEntry, GuestbookEntry } from '@/lib/guestbook'
 
 // Rate limit: 5 submissions per IP per hour
 const RATE_LIMIT = 5
 const RATE_LIMIT_WINDOW = 60 * 60 * 1000 // 1 hour in ms
-
-async function getEntries(): Promise<GuestbookEntry[]> {
-  try {
-    const entries = await kv.get<GuestbookEntry[]>('guestbook:entries')
-    return entries || []
-  } catch {
-    console.warn('KV not available, using memory storage')
-    return memoryEntries
-  }
-}
-
-async function saveEntries(entries: GuestbookEntry[]): Promise<boolean> {
-  try {
-    await kv.set('guestbook:entries', entries)
-    return true
-  } catch {
-    console.warn('KV not available, saving to memory')
-    memoryEntries = entries
-    return true
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -96,10 +64,11 @@ export async function POST(request: NextRequest) {
       ip,
     }
 
-    // Store entry
-    const entries = await getEntries()
-    entries.unshift(entry)
-    await saveEntries(entries)
+    // Store entry using shared storage
+    const saved = await saveEntry(entry)
+    if (!saved) {
+      return NextResponse.json({ success: false, error: 'Failed to save entry' }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true, id: entry.id, createdAt: entry.createdAt }, { status: 201 })
   } catch (error) {

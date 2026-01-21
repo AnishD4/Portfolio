@@ -1,15 +1,7 @@
 import { kv } from '@vercel/kv'
 import { NextRequest, NextResponse } from 'next/server'
 import { isValidToken } from '@/lib/auth'
-
-interface GuestbookEntry {
-  id: string
-  name: string
-  email: string
-  message: string
-  createdAt: string
-  ip: string
-}
+import { getEntries } from '@/lib/guestbook'
 
 async function verifyAdmin(request: NextRequest): Promise<boolean> {
   const sessionToken = request.cookies.get('admin_session')?.value
@@ -35,7 +27,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const entries: GuestbookEntry[] = (await kv.get('guestbook:entries')) || []
+    const entries = await getEntries()
 
     // Generate CSV
     const headers = ['ID', 'Name', 'Email', 'Message', 'Created At', 'IP']

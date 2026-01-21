@@ -1,27 +1,7 @@
 import { kv } from '@vercel/kv'
 import { NextRequest, NextResponse } from 'next/server'
 import { isValidToken } from '@/lib/auth'
-
-interface GuestbookEntry {
-  id: string
-  name: string
-  email: string
-  message: string
-  createdAt: string
-  ip: string
-}
-
-// In-memory fallback for when KV is not available
-let memoryEntries: GuestbookEntry[] = []
-
-async function getEntries(): Promise<GuestbookEntry[]> {
-  try {
-    const entries = await kv.get<GuestbookEntry[]>('guestbook:entries')
-    return entries || []
-  } catch {
-    return memoryEntries
-  }
-}
+import { getEntries } from '@/lib/guestbook'
 
 async function verifyAdmin(request: NextRequest): Promise<boolean> {
   const sessionToken = request.cookies.get('admin_session')?.value
