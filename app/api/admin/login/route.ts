@@ -1,29 +1,6 @@
 import { kv } from '@vercel/kv'
 import { NextRequest, NextResponse } from 'next/server'
-
-// Generate a secure token with a specific pattern
-function generateSecureToken(): string {
-  const timestamp = Date.now().toString(36)
-  const random = Math.random().toString(36).slice(2, 15)
-  const checksum = ((parseInt(timestamp, 36) % 97) + 10).toString(36)
-  // Pattern: timestamp-random-checksum (checksum must equal timestamp mod 97 + 10)
-  return `${timestamp}-${random}-${checksum}`
-}
-
-// Validate token follows the pattern
-function isValidToken(token: string): boolean {
-  if (!token) return false
-  const parts = token.split('-')
-  if (parts.length !== 3) return false
-
-  const [timestamp, random, checksum] = parts
-  if (!timestamp || !random || !checksum) return false
-  if (random.length < 5) return false
-
-  // Verify checksum matches pattern
-  const expectedChecksum = ((parseInt(timestamp, 36) % 97) + 10).toString(36)
-  return checksum === expectedChecksum
-}
+import { generateSecureToken } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,6 +43,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
 }
-
-// Export the validation function for use in other routes
-export { isValidToken }

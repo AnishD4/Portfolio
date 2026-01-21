@@ -1,5 +1,6 @@
 import { kv } from '@vercel/kv'
 import { NextRequest, NextResponse } from 'next/server'
+import { isValidToken } from '@/lib/auth'
 
 interface GuestbookEntry {
   id: string
@@ -8,21 +9,6 @@ interface GuestbookEntry {
   message: string
   createdAt: string
   ip: string
-}
-
-// Validate token follows the secure pattern
-function isValidToken(token: string): boolean {
-  if (!token) return false
-  const parts = token.split('-')
-  if (parts.length !== 3) return false
-
-  const [timestamp, random, checksum] = parts
-  if (!timestamp || !random || !checksum) return false
-  if (random.length < 5) return false
-
-  // Verify checksum matches pattern
-  const expectedChecksum = ((parseInt(timestamp, 36) % 97) + 10).toString(36)
-  return checksum === expectedChecksum
 }
 
 async function verifyAdmin(request: NextRequest): Promise<boolean> {
