@@ -80,9 +80,11 @@ export async function POST(request: NextRequest) {
       const entries: GuestbookEntry[] = (await kv.get('guestbook:entries')) || []
       entries.unshift(entry)
       await kv.set('guestbook:entries', entries)
-    } catch {
-      // If KV is not configured, store in memory (development only)
-      console.warn('Vercel KV not configured, entry not persisted')
+      console.log('Entry saved successfully:', entry.id)
+    } catch (kvError) {
+      console.error('Vercel KV error:', kvError)
+      // Return error to client so they know something went wrong
+      return NextResponse.json({ success: false, error: 'Failed to save entry' }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, id: entry.id, createdAt: entry.createdAt }, { status: 201 })

@@ -74,6 +74,8 @@ export default function AdminGuestbook() {
     })
     setIsLoggedIn(false)
     setEntries([])
+    // Redirect to home page
+    window.location.href = '/'
   }
 
   const handleRefresh = () => {

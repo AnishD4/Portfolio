@@ -36,9 +36,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const entries: GuestbookEntry[] = (await kv.get('guestbook:entries')) || []
-    return NextResponse.json({ success: true, entries })
+    console.log('Fetched entries count:', entries.length)
+    return NextResponse.json({ success: true, entries, count: entries.length })
   } catch (error) {
     console.error('Error fetching guestbook entries:', error)
-    return NextResponse.json({ success: true, entries: [] })
+    return NextResponse.json({ success: false, entries: [], error: 'Failed to fetch entries' }, { status: 500 })
   }
 }

@@ -4,15 +4,15 @@ import { useTheme } from '@/components/ThemeProvider'
 import { useState } from 'react'
 
 const navLinks = [
-  { href: '#hero', label: 'Home' },
-  { href: '#about', label: 'About' },
-  { href: '#education', label: 'Education' },
-  { href: '#skills', label: 'Skills' },
-  { href: '#experience', label: 'Experience' },
-  { href: '#projects', label: 'Projects' },
-  { href: '#activities', label: 'Activities' },
-  { href: '#honors', label: 'Honors' },
-  { href: '#contact', label: 'Contact' },
+  { href: '/#hero', label: 'Home' },
+  { href: '/#about', label: 'About' },
+  { href: '/#education', label: 'Education' },
+  { href: '/#skills', label: 'Skills' },
+  { href: '/#experience', label: 'Experience' },
+  { href: '/#projects', label: 'Projects' },
+  { href: '/#activities', label: 'Activities' },
+  { href: '/#honors', label: 'Honors' },
+  { href: '/#contact', label: 'Contact' },
 ]
 
 export default function Header() {
@@ -24,7 +24,7 @@ export default function Header() {
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <a href="#hero" className="font-bold text-xl text-indigo-600 dark:text-indigo-400">
+          <a href="/" className="font-bold text-xl text-indigo-600 dark:text-indigo-400">
             Atharv Dhore
           </a>
 
