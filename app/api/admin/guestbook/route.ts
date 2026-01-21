@@ -11,6 +11,18 @@ interface GuestbookEntry {
   ip: string
 }
 
+// In-memory fallback for when KV is not available
+let memoryEntries: GuestbookEntry[] = []
+
+async function getEntries(): Promise<GuestbookEntry[]> {
+  try {
+    const entries = await kv.get<GuestbookEntry[]>('guestbook:entries')
+    return entries || []
+  } catch {
+    return memoryEntries
+  }
+}
+
 async function verifyAdmin(request: NextRequest): Promise<boolean> {
   const sessionToken = request.cookies.get('admin_session')?.value
   if (!sessionToken) return false
@@ -35,8 +47,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const entries: GuestbookEntry[] = (await kv.get('guestbook:entries')) || []
-    console.log('Fetched entries count:', entries.length)
+    const entries = await getEntries()
     return NextResponse.json({ success: true, entries, count: entries.length })
   } catch (error) {
     console.error('Error fetching guestbook entries:', error)

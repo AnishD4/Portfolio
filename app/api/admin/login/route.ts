@@ -20,10 +20,11 @@ export async function POST(request: NextRequest) {
     // Generate secure session token with pattern
     const sessionToken = generateSecureToken()
 
-    // Store session in KV with 7 day expiry
+    // Try to store session in KV, but don't fail if KV is unavailable
     try {
       await kv.set(`session:${sessionToken}`, { createdAt: Date.now(), valid: true }, { ex: 60 * 60 * 24 * 7 })
     } catch {
+      // KV not available, session will be validated by pattern only
       console.warn('KV not configured, using cookie-only session')
     }
 

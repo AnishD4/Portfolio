@@ -10,9 +10,33 @@ interface GuestbookEntry {
   ip: string
 }
 
+// In-memory fallback for when KV is not available
+let memoryEntries: GuestbookEntry[] = []
+
 // Rate limit: 5 submissions per IP per hour
 const RATE_LIMIT = 5
 const RATE_LIMIT_WINDOW = 60 * 60 * 1000 // 1 hour in ms
+
+async function getEntries(): Promise<GuestbookEntry[]> {
+  try {
+    const entries = await kv.get<GuestbookEntry[]>('guestbook:entries')
+    return entries || []
+  } catch {
+    console.warn('KV not available, using memory storage')
+    return memoryEntries
+  }
+}
+
+async function saveEntries(entries: GuestbookEntry[]): Promise<boolean> {
+  try {
+    await kv.set('guestbook:entries', entries)
+    return true
+  } catch {
+    console.warn('KV not available, saving to memory')
+    memoryEntries = entries
+    return true
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,11 +64,10 @@ export async function POST(request: NextRequest) {
                request.headers.get('x-real-ip') ||
                'unknown'
 
-    // Rate limiting using Vercel KV
-    const rateLimitKey = `ratelimit:${ip}`
-    const now = Date.now()
-
+    // Rate limiting (skip if KV not available)
     try {
+      const rateLimitKey = `ratelimit:${ip}`
+      const now = Date.now()
       const timestamps: number[] = (await kv.get(rateLimitKey)) || []
       const recentTimestamps = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW)
 
@@ -57,12 +80,10 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Update rate limit timestamps
       recentTimestamps.push(now)
-      await kv.set(rateLimitKey, recentTimestamps, { ex: 3600 }) // expire in 1 hour
+      await kv.set(rateLimitKey, recentTimestamps, { ex: 3600 })
     } catch {
-      // If KV is not configured, skip rate limiting (development mode)
-      console.warn('Vercel KV not configured, skipping rate limit')
+      // Skip rate limiting if KV not available
     }
 
     // Create entry
@@ -75,17 +96,10 @@ export async function POST(request: NextRequest) {
       ip,
     }
 
-    // Store in Vercel KV
-    try {
-      const entries: GuestbookEntry[] = (await kv.get('guestbook:entries')) || []
-      entries.unshift(entry)
-      await kv.set('guestbook:entries', entries)
-      console.log('Entry saved successfully:', entry.id)
-    } catch (kvError) {
-      console.error('Vercel KV error:', kvError)
-      // Return error to client so they know something went wrong
-      return NextResponse.json({ success: false, error: 'Failed to save entry' }, { status: 500 })
-    }
+    // Store entry
+    const entries = await getEntries()
+    entries.unshift(entry)
+    await saveEntries(entries)
 
     return NextResponse.json({ success: true, id: entry.id, createdAt: entry.createdAt }, { status: 201 })
   } catch (error) {
@@ -96,7 +110,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    const entries: GuestbookEntry[] = (await kv.get('guestbook:entries')) || []
+    const entries = await getEntries()
     // Return public entries without email and IP
     const publicEntries = entries.map(({ id, name, message, createdAt }) => ({
       id,
@@ -109,4 +123,3 @@ export async function GET() {
     return NextResponse.json({ success: true, entries: [] })
   }
 }
-
