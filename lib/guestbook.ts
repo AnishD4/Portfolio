@@ -37,6 +37,9 @@ export async function saveEntry(entry: GuestbookEntry): Promise<boolean> {
       entries = memoryEntries
     }
 
+    // Remove any existing entries with the same email (keep only latest)
+    entries = entries.filter(e => e.email.toLowerCase() !== entry.email.toLowerCase())
+
     // Add new entry at the beginning
     entries.unshift(entry)
 
