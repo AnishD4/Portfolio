@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface GuestbookEntry {
   id: string
@@ -13,10 +13,31 @@ interface GuestbookEntry {
 
 export default function AdminGuestbook() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isChecking, setIsChecking] = useState(true)
   const [password, setPassword] = useState('')
   const [entries, setEntries] = useState<GuestbookEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const fetchEntries = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/guestbook', {
+        credentials: 'include',
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setEntries(data.entries || [])
+        setIsLoggedIn(true)
+        return true
+      } else if (res.status === 401) {
+        setIsLoggedIn(false)
+        return false
+      }
+    } catch {
+      console.error('Failed to fetch entries')
+    }
+    return false
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,12 +49,14 @@ export default function AdminGuestbook() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
+        credentials: 'include',
       })
 
       if (res.ok) {
         setIsLoggedIn(true)
         setPassword('')
-        fetchEntries()
+        // Wait a moment for cookie to be set, then fetch entries
+        setTimeout(() => fetchEntries(), 100)
       } else {
         setError('Invalid password')
       }
@@ -44,35 +67,36 @@ export default function AdminGuestbook() {
     }
   }
 
-  const fetchEntries = async () => {
-    try {
-      const res = await fetch('/api/admin/guestbook')
-      if (res.ok) {
-        const data = await res.json()
-        setEntries(data.entries || [])
-      } else if (res.status === 401) {
-        setIsLoggedIn(false)
-      }
-    } catch {
-      console.error('Failed to fetch entries')
-    }
-  }
-
   const handleLogout = async () => {
-    await fetch('/api/admin/logout', { method: 'POST' })
+    await fetch('/api/admin/logout', {
+      method: 'POST',
+      credentials: 'include',
+    })
     setIsLoggedIn(false)
     setEntries([])
   }
 
+  const handleRefresh = () => {
+    fetchEntries()
+  }
+
   useEffect(() => {
-    // Check if already logged in
-    fetchEntries().then(() => {
-      if (entries.length > 0 || document.cookie.includes('admin_session')) {
-        setIsLoggedIn(true)
-      }
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    // Check if already logged in by trying to fetch entries
+    const checkAuth = async () => {
+      setIsChecking(true)
+      await fetchEntries()
+      setIsChecking(false)
+    }
+    checkAuth()
+  }, [fetchEntries])
+
+  if (isChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <p className="text-gray-600 dark:text-gray-400">Checking authentication...</p>
+      </div>
+    )
+  }
 
   if (!isLoggedIn) {
     return (
@@ -119,6 +143,12 @@ export default function AdminGuestbook() {
             Guestbook Admin
           </h1>
           <div className="flex gap-4">
+            <button
+              onClick={handleRefresh}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+            >
+              Refresh
+            </button>
             <a
               href="/api/admin/guestbook/download"
               className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
@@ -180,4 +210,3 @@ export default function AdminGuestbook() {
     </div>
   )
 }
-

@@ -10,15 +10,35 @@ interface GuestbookEntry {
   ip: string
 }
 
+// Validate token follows the secure pattern
+function isValidToken(token: string): boolean {
+  if (!token) return false
+  const parts = token.split('-')
+  if (parts.length !== 3) return false
+
+  const [timestamp, random, checksum] = parts
+  if (!timestamp || !random || !checksum) return false
+  if (random.length < 5) return false
+
+  // Verify checksum matches pattern
+  const expectedChecksum = ((parseInt(timestamp, 36) % 97) + 10).toString(36)
+  return checksum === expectedChecksum
+}
+
 async function verifyAdmin(request: NextRequest): Promise<boolean> {
   const sessionToken = request.cookies.get('admin_session')?.value
   if (!sessionToken) return false
 
+  // First check if token follows the valid pattern
+  if (!isValidToken(sessionToken)) return false
+
   try {
+    // Then verify it exists in KV and is valid
     const session = await kv.get(`session:${sessionToken}`)
     return !!session
   } catch {
-    return !!sessionToken
+    // If KV not configured, just check pattern (dev mode)
+    return isValidToken(sessionToken)
   }
 }
 
@@ -56,8 +76,8 @@ export async function GET(request: NextRequest) {
         'Content-Disposition': `attachment; filename="guestbook-${new Date().toISOString().split('T')[0]}.csv"`,
       },
     })
-  } catch {
+  } catch (error) {
+    console.error('Error generating CSV:', error)
     return NextResponse.json({ success: false, error: 'Failed to generate CSV' }, { status: 500 })
   }
 }
-
